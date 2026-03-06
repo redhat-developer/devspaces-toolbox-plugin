@@ -1,0 +1,20 @@
+[versions]
+coroutines = "1.10.1"
+jackson = "2.18.2"
+kotlin = "2.1.0"
+toolbox-plugin-api = "1.8.65679"
+plugin-structure = "3.320"
+
+[libraries]
+coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+jackson-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
+toolbox-core-api = { module = "com.jetbrains.toolbox:core-api", version.ref = "toolbox-plugin-api" }
+toolbox-remote-dev-api = { module = "com.jetbrains.toolbox:remote-dev-api", version.ref = "toolbox-plugin-api" }
+toolbox-ui-api = { module = "com.jetbrains.toolbox:ui-api", version.ref = "toolbox-plugin-api" }
+plugin-structure = { module = "org.jetbrains.intellij.plugins:structure-toolbox", version.ref = "plugin-structure" }
+
+[bundles]
+toolbox-plugin-api = [ "toolbox-core-api", "toolbox-ui-api", "toolbox-remote-dev-api"]
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
