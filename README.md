@@ -17,8 +17,8 @@ c. Restart the Toolbox App if it's running.
 a. Start a workspace by selecting `JetBrains IDE (over Toolbox)` editor option on the Dashboard.
 Alternatively, you can provide [this custom editor definition](https://gist.githubusercontent.com/azatsarynnyy/56a07b64fbd13fac38844baee005971f/raw/78bfac4d93673438c9faff05829eaa2869c0600d/editor-over-ssh) on the Dashboard.
 
-b. Once a workspace is up and running, follow the provided instruction to open Toolbox App.
+b. Once a workspace is up and running, follow the provided instructions to open the Toolbox App.
 
-c. Once the Toolbox App connected to a remote, click it and choose an IDE to install in the CDE.
+c. Once the Toolbox App is connected to a remote, click it and choose an IDE to install in the CDE.
 
-d. Once a chosen IDE is installed, go the previous page and click the project folder. Local ThinClient will connect to CDE.
+d. Once a chosen IDE is installed, go to the previous page and click the project folder. Local ThinClient will connect to CDE.
