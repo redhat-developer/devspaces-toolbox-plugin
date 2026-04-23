@@ -3,6 +3,7 @@ plugins {
   `kotlin-dsl`
   id("com.redhat.devtools.toolbox.packaging")
   id("com.redhat.devtools.toolbox.install")
+  id("com.redhat.devtools.toolbox.publish")
   `java-library`
 }
 
@@ -10,6 +11,8 @@ plugins {
 // when handling the URLs like `jetbrains://gateway/provider.ID`
 group = "com.redhat.devtools.toolbox"
 version = "0.0.1"
+
+extra["vendor"] = "Red-Hat"
 
 kotlin {
   jvmToolchain(21)
