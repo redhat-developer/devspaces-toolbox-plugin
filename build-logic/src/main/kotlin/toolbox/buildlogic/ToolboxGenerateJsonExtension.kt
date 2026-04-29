@@ -84,7 +84,7 @@ class ToolboxGenerateJsonExtension : Plugin<Project> {
       extensionVersion.set(target.version.toString())
       metaName.set("Red Hat OpenShift Dev Spaces")
       metaDescription.set("Red Hat OpenShift Dev Spaces Plugin for JetBrains Toolbox")
-      metaVendor.set("Red-Hat")
+      metaVendor.set(target.extensions.extraProperties["vendor"].toString())
       metaUrl.set("https://www.redhat.com")
       destinationFile.set(extensionJsonFile)
     }

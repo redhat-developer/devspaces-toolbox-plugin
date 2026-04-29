@@ -12,6 +12,8 @@ plugins {
 group = "com.redhat.devtools.toolbox"
 version = "0.0.1"
 
+extra["vendor"] = "Red-Hat"
+
 kotlin {
   jvmToolchain(21)
 }
