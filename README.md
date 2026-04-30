@@ -22,3 +22,11 @@ b. Once a workspace is up and running, follow the provided instructions to open 
 c. Once the Toolbox App is connected to a remote, click it and choose an IDE to install in the CDE.
 
 d. Once a chosen IDE is installed, go to the previous page and click the project folder. Local ThinClient will connect to CDE.
+
+
+## Release
+- Find a draft release on the [Releases](https://github.com/redhat-developer/devspaces-toolbox-plugin/releases) page. The draft is created and updated automatically on each push to the `main` branch.
+- Edit the draft:
+  - Click the `Generate release notes` button and edit the release notes if needed
+  - Click the `Publish release` button. The [Release](https://github.com/redhat-developer/devspaces-toolbox-plugin/blob/main/.github/workflows/release.yml) Workflow will attach the built plugin artifact to the published release and upload the plugin artifact to [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/31372-red-hat-openshift-dev-spaces).
+- Bump the `version` in the [gradle.properties](https://github.com/redhat-developer/devspaces-toolbox-plugin/blob/main/plugin/build.gradle.kts) file.
