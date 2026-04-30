@@ -26,7 +26,7 @@ import java.net.URI
  */
 class DevSpacesRemoteProvider(
     val repository: EnvironmentRepository, val logger: Logger
-) : RemoteProvider("Red Hat OpenShift Dev Spaces") {
+) : RemoteProvider("Dev Spaces") {
 
     override val svgIcon: SvgIcon = SvgIcon(
         this::class.java.getResourceAsStream("/icon.svg")?.readAllBytes() ?: byteArrayOf(),

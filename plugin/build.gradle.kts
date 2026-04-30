@@ -1,6 +1,6 @@
 plugins {
   alias(libs.plugins.kotlin.jvm)
-  `kotlin-dsl`
+//  `kotlin-dsl`
   id("com.redhat.devtools.toolbox.packaging")
   id("com.redhat.devtools.toolbox.install")
   `java-library`
@@ -11,6 +11,11 @@ plugins {
 group = "com.redhat.devtools.toolbox"
 version = "0.0.1"
 
+configurations.named("runtimeClasspath") {
+  exclude(group = "org.jetbrains.kotlin")
+  exclude(group = "org.jetbrains.kotlinx")
+}
+
 kotlin {
   jvmToolchain(21)
 }
@@ -18,6 +23,9 @@ kotlin {
 dependencies {
   compileOnly(libs.bundles.toolbox.plugin.api)
   compileOnly(libs.coroutines.core)
+  implementation("io.fabric8:openshift-client:7.2.0") {
+    exclude(group = "org.slf4j")
+  }
 }
 
 // Known issue with kotlin 2.1.0 when using MutableStateFlow, please remove

@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 class SshEnvironmentContentsViewFactory : EnvironmentContentsViewFactory {
 
-    override suspend fun create(config: EnvironmentConfig): EnvironmentContentsView {
+    override suspend fun create(config: EnvironmentConfig, portProvider: () -> Int): EnvironmentContentsView {
         val ides = config.availableIdeProductCodes.map { productCode ->
             SimpleIdeStub(productCode)
         }
@@ -32,7 +32,7 @@ class SshEnvironmentContentsViewFactory : EnvironmentContentsViewFactory {
             CachedProject(path)
         }
 
-        return SimpleEnvironmentContentsView(ides, projects, config.username!!, config.sshKey!!)
+        return SimpleEnvironmentContentsView(ides, projects, config.username!!, config.sshKey!!, portProvider)
     }
 }
 
@@ -43,7 +43,8 @@ class SimpleEnvironmentContentsView(
     ides: List<CachedIdeStub>,
     projects: List<CachedProject>,
     val userName: String,
-    val sshKey: String
+    val sshKey: String,
+    private val portProvider: () -> Int
 ) : ManualEnvironmentContentsView, SshEnvironmentContentsView {
 
     // Expose as immutable flows - data is set once at construction
@@ -53,7 +54,7 @@ class SimpleEnvironmentContentsView(
     override val projectListState: Flow<LoadableState<List<CachedProject>>> =
         MutableStateFlow(LoadableState.Value(projects))
 
-    override suspend fun getConnectionInfo(): SshConnectionInfo = WorkspaceSshConnectionInfo(userName, sshKey)
+    override suspend fun getConnectionInfo(): SshConnectionInfo = WorkspaceSshConnectionInfo(userName, sshKey, portProvider)
 }
 
 data class SimpleIdeStub(
@@ -63,12 +64,18 @@ data class SimpleIdeStub(
     override fun isRunning(): Boolean? = running
 }
 
-private class WorkspaceSshConnectionInfo(val uName: String, val sshKey: String) : SshConnectionInfo {
+private class WorkspaceSshConnectionInfo(
+    val uName: String,
+    val sshKey: String,
+    private val portProvider: () -> Int
+) : SshConnectionInfo {
 
     override val host: String = "devspaces"
 
-    // TODO: constant local port means we only support one active connection
-    override val port: Int = 2022
+    // TODO: the port value is read on first call only.
+    // But it's not re-read on the subsequent calls.
+    // Need to re-read it on each connection attempts as the port is chosen dynamically.
+    override val port: Int get() = portProvider()
 
     override val userName: String = uName
 

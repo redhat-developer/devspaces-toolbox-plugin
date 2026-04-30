@@ -12,23 +12,53 @@
 package com.redhat.devtools.toolbox.datasource
 
 import com.jetbrains.toolbox.api.core.diagnostics.Logger
-import kotlinx.coroutines.flow.MutableStateFlow
 import com.redhat.devtools.toolbox.environment.EnvironmentConfig
+import com.redhat.devtools.toolbox.openshift.OpenShiftClientFactory
+import com.redhat.devtools.toolbox.openshift.DevWorkspaces
+import com.redhat.devtools.toolbox.openshift.Projects
+import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
  * Data source returns the environment configurations from
  * the DevWorkspaces fetched from a Dev Spaces instance.
  */
 class DevWorkspacesDataSource(
-    logger: Logger
+    private val clientFactory: OpenShiftClientFactory,
+    private val logger: Logger
 ) : EnvironmentDataSource {
 
     /**
      * Fetches the CDEs from the currently logged-in Dev Spaces instance.
      */
     override suspend fun fetchEnvironments(): List<EnvironmentConfig> {
-//        TODO("Not yet implemented")
-        return emptyList()
+        return try {
+            clientFactory.create().use { client ->
+                val projects = Projects(client).list()
+
+                projects
+                    .mapNotNull { it.metadata?.name }
+                    .flatMap { namespace ->
+                        DevWorkspaces(client, logger).list(namespace)
+                    }
+                    .map { workspace ->
+                        // TODO: figure out how to fetch the connection data
+                        EnvironmentConfig(
+                            id = workspace.uid,
+                            name = MutableStateFlow(workspace.name),
+                            description = "[API] DevWorkspace",
+                            username = "1001270000",
+                            port = 2022,
+                            sshKey = "-----BEGIN OPENSSH PRIVATE KEY-----\n" +
+                                    "-----END OPENSSH PRIVATE KEY-----\n",
+                            availableIdeProductCodes = listOf("IU"),
+                            projectPaths = listOf("/projects")
+                        )
+                    }
+            }
+        } catch (e: Exception) {
+            logger.error("Failed to fetch environments: ${e.message}")
+            emptyList()
+        }
     }
 
     override fun handleExternalRequest(

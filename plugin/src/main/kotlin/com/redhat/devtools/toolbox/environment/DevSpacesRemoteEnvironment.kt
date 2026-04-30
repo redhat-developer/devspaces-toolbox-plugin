@@ -13,12 +13,17 @@ package com.redhat.devtools.toolbox.environment
 
 import com.jetbrains.toolbox.api.core.diagnostics.Logger
 import com.jetbrains.toolbox.api.localization.LocalizableStringFactory
+import com.jetbrains.toolbox.api.remoteDev.AfterDisconnectHook
+import com.jetbrains.toolbox.api.remoteDev.BeforeConnectionHook
 import com.jetbrains.toolbox.api.remoteDev.EnvironmentVisibilityState
 import com.jetbrains.toolbox.api.remoteDev.RemoteProviderEnvironment
 import com.jetbrains.toolbox.api.remoteDev.environments.EnvironmentContentsView
 import com.jetbrains.toolbox.api.remoteDev.states.EnvironmentDescription
 import com.jetbrains.toolbox.api.remoteDev.states.RemoteEnvironmentState
 import com.jetbrains.toolbox.api.remoteDev.states.StandardRemoteEnvironmentState
+import com.redhat.devtools.toolbox.openshift.OpenShiftClientFactory
+import io.fabric8.kubernetes.client.LocalPortForward
+import io.fabric8.openshift.client.OpenShiftClient
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -30,7 +35,8 @@ class DevSpacesRemoteEnvironment(
     private val initialConfig: EnvironmentConfig,
     private val contentsViewFactory: EnvironmentContentsViewFactory = SshEnvironmentContentsViewFactory(),
     private val localizableStringFactory: LocalizableStringFactory,
-    private val logger: Logger
+    private val logger: Logger,
+    private val clientFactory: OpenShiftClientFactory
 ) : RemoteProviderEnvironment(initialConfig.id) {
 
     // Mutable internal state
@@ -43,6 +49,10 @@ class DevSpacesRemoteEnvironment(
 
     private val _connectionRequest = MutableStateFlow(false)
 
+    // Port forwarding resources (kept alive during connection)
+    private var activeClient: OpenShiftClient? = null
+    private var activePortForward: LocalPortForward? = null
+
     //  Public reactive properties (observed by Toolbox UI)
     override var nameFlow: MutableStateFlow<String> = _currentConfig.name
 
@@ -54,7 +64,7 @@ class DevSpacesRemoteEnvironment(
 
     override suspend fun getContentsView(): EnvironmentContentsView {
         logger.debug("PLUGIN: getContentsView called for id='${initialConfig.id}', name='${_currentConfig.name}'")
-        val view = contentsViewFactory.create(_currentConfig)
+        val view = contentsViewFactory.create(_currentConfig) { activePortForward?.localPort ?: 2022 }
         logger.debug("PLUGIN: Created view with ${_currentConfig.availableIdeProductCodes.size} IDEs, ${_currentConfig.projectPaths.size} projects")
         return view
     }
@@ -89,6 +99,57 @@ class DevSpacesRemoteEnvironment(
     }
 
     fun getConfig(): EnvironmentConfig = _currentConfig
+
+    override fun getBeforeConnectionHooks(): List<BeforeConnectionHook> {
+        return listOf(
+            BeforeConnectionHook {
+                logger.info("Running before connection hook for environment: ${initialConfig.id}")
+
+                // Close any previous port forward
+//                closePortForward()
+
+                // Create new client and port forward (kept alive until closePortForward is called)
+                val client = clientFactory.create()
+                activeClient = client
+
+                // TODO: figure out how to fetch the pod information
+                activePortForward = client.pods()
+                    .inNamespace("azatsarynnyy-che")
+                    .withName("workspacee64b5c5b8a6d4196-577c7ff96b-plbhx")
+                    .portForward(_currentConfig.port, 0)
+
+                logger.info("Port forward established: localhost:${activePortForward?.localPort} -> pod:${_currentConfig.port}")
+            }
+        )
+    }
+
+    override fun getAfterDisconnectHooks(): List<AfterDisconnectHook> {
+        return listOf(
+            object : AfterDisconnectHook {
+                override fun afterDisconnect(isManual: Boolean) {
+                    logger.info("Running after disconnect hook for environment: ${initialConfig.id}")
+                    closePortForward()
+                }
+            }
+        )
+    }
+
+    fun closePortForward() {
+        try {
+            activePortForward?.close()
+            activePortForward = null
+            logger.info("Port forward closed")
+        } catch (e: Exception) {
+            logger.debug("Error closing port forward: ${e.message}")
+        }
+
+        try {
+            activeClient?.close()
+            activeClient = null
+        } catch (e: Exception) {
+            logger.debug("Error closing client: ${e.message}")
+        }
+    }
 }
 
 /**
@@ -97,7 +158,8 @@ class DevSpacesRemoteEnvironment(
 fun EnvironmentConfig.toRemoteEnvironment(
     factory: EnvironmentContentsViewFactory = SshEnvironmentContentsViewFactory(),
     localizableStringFactory: LocalizableStringFactory,
-    logger: Logger
+    logger: Logger,
+    clientFactory: OpenShiftClientFactory
 ): DevSpacesRemoteEnvironment {
-    return DevSpacesRemoteEnvironment(this, factory, localizableStringFactory, logger)
+    return DevSpacesRemoteEnvironment(this, factory, localizableStringFactory, logger, clientFactory)
 }

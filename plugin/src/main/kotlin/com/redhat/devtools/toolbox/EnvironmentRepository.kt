@@ -18,6 +18,7 @@ import com.jetbrains.toolbox.api.remoteDev.states.RemoteEnvironmentState
 import com.redhat.devtools.toolbox.datasource.DataSourceException
 import com.redhat.devtools.toolbox.datasource.EnvironmentDataSource
 import com.redhat.devtools.toolbox.environment.*
+import com.redhat.devtools.toolbox.openshift.OpenShiftClientFactory
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.coroutines.cancellation.CancellationException
@@ -39,7 +40,8 @@ class EnvironmentRepository(
     private val coroutineScope: CoroutineScope,
     private val contentsViewFactory: EnvironmentContentsViewFactory = SshEnvironmentContentsViewFactory(),
     private val refreshInterval: Duration = 10.minutes,
-    private val localizableStringFactory: LocalizableStringFactory
+    private val localizableStringFactory: LocalizableStringFactory,
+    private val clientFactory: OpenShiftClientFactory
 ) {
     // Internal mutable state
     private val _environments = MutableStateFlow<LoadableState<List<DevSpacesRemoteEnvironment>>>(
@@ -106,7 +108,7 @@ class EnvironmentRepository(
     private fun getOrCreateEnvironment(config: EnvironmentConfig): DevSpacesRemoteEnvironment {
         return environmentCache.getOrPut(config.id) {
             logger.debug("Creating new environment: ${config.id}")
-            config.toRemoteEnvironment(contentsViewFactory, localizableStringFactory, logger)
+            config.toRemoteEnvironment(contentsViewFactory, localizableStringFactory, logger, clientFactory)
         }.also { existingEnv ->
             // Update config if it is changed
             if (existingEnv.getConfig() != config) {

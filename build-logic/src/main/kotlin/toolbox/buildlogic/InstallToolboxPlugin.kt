@@ -14,8 +14,10 @@ package com.redhat.devtools.toolbox.buildlogic
 import org.gradle.api.DefaultTask
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.TaskAction
@@ -29,6 +31,7 @@ class InstallToolboxPlugin : Plugin<Project> {
     val installTask = target.tasks.register("installPlugin", InstallTask::class.java) {
       extensionId.set(target.group.toString())
       extensionJsonFile.set(target.layout.buildDirectory.file("generated/extension.json"))
+      pluginRuntimeDependencies.from(target.configurations.named("runtimeClasspath"))
     }
     installTask.configure { dependsOn(target.tasks.named("assemble")) }
   }
@@ -40,6 +43,9 @@ class InstallToolboxPlugin : Plugin<Project> {
 
     @get:InputFile
     abstract val extensionJsonFile: RegularFileProperty
+
+    @get:Classpath
+    abstract val pluginRuntimeDependencies: ConfigurableFileCollection
 
     @TaskAction
     fun install() {
@@ -65,6 +71,7 @@ class InstallToolboxPlugin : Plugin<Project> {
         // Copy jar task output and the generated JSON
         from(project.tasks.getByName("jar"))
         from(extensionJsonFile)
+        from(pluginRuntimeDependencies)
 
         // Copy selected resources
         from("src/main/resources") {
