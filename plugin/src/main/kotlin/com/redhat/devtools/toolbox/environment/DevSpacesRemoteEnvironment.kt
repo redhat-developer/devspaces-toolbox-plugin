@@ -26,6 +26,7 @@ import io.fabric8.kubernetes.client.LocalPortForward
 import io.fabric8.openshift.client.OpenShiftClient
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 
 /**
@@ -62,9 +63,17 @@ class DevSpacesRemoteEnvironment(
 
     override val connectionRequest: Flow<Boolean> = _connectionRequest
 
+    // Hide the Toolbox-provided `Delete` action in the `Environment actions` menu.
+    // We don't need that for now.
+    override val deleteActionFlow: StateFlow<(() -> Unit)?> = MutableStateFlow(null)
+
     override suspend fun getContentsView(): EnvironmentContentsView {
         logger.debug("PLUGIN: getContentsView called for id='${initialConfig.id}', name='${_currentConfig.name}'")
-        val view = contentsViewFactory.create(_currentConfig) { activePortForward?.localPort ?: 2022 }
+        val view = contentsViewFactory.create(
+            _currentConfig,
+            portProvider = { PortAllocator.get(initialConfig.id) ?: 0 },
+            keyProvider = { SshKeyStore.get(initialConfig.id) ?: "" }
+        )
         logger.debug("PLUGIN: Created view with ${_currentConfig.availableIdeProductCodes.size} IDEs, ${_currentConfig.projectPaths.size} projects")
         return view
     }
@@ -105,20 +114,56 @@ class DevSpacesRemoteEnvironment(
             BeforeConnectionHook {
                 logger.info("Running before connection hook for environment: ${initialConfig.id}")
 
-                // Close any previous port forward
-//                closePortForward()
+                val namespace = _currentConfig.tags["namespace"]
+                    ?: throw IllegalStateException("Namespace not found in environment config")
+                val workspaceName = _currentConfig.name.value
 
-                // Create new client and port forward (kept alive until closePortForward is called)
                 val client = clientFactory.create()
                 activeClient = client
 
-                // TODO: figure out how to fetch the pod information
+                val pod = client.pods()
+                    .inNamespace(namespace)
+                    .withLabel("controller.devfile.io/devworkspace_name", workspaceName)
+                    .list()
+                    .items
+                    .firstOrNull()
+                    ?: throw IllegalStateException("No pod found for workspace $workspaceName in namespace $namespace")
+
+                logger.info("Found pod: ${pod.metadata.name} for workspace: $workspaceName")
+
+                val savedPort = PortAllocator.get(initialConfig.id)
                 activePortForward = client.pods()
-                    .inNamespace("azatsarynnyy-che")
-                    .withName("workspacee64b5c5b8a6d4196-577c7ff96b-plbhx")
-                    .portForward(_currentConfig.port, 0)
+                    .inNamespace(namespace)
+                    .withName(pod.metadata.name)
+                    .portForward(_currentConfig.port, savedPort ?: 0)
+
+                if (savedPort == null) {
+                    PortAllocator.save(initialConfig.id, activePortForward!!.localPort)
+                }
 
                 logger.info("Port forward established: localhost:${activePortForward?.localPort} -> pod:${_currentConfig.port}")
+
+
+
+                // Read SSH key from container if not cached
+                if (SshKeyStore.get(initialConfig.id) == null) {
+                    val output = java.io.ByteArrayOutputStream()
+                    val latch = java.util.concurrent.CountDownLatch(1)
+                    client.pods()
+                        .inNamespace(namespace)
+                        .withName(pod.metadata.name)
+                        .inContainer("jetbrains-sshd-page")
+                        .writingOutput(output)
+                        .usingListener(object : io.fabric8.kubernetes.client.dsl.ExecListener {
+                            override fun onClose(code: Int, reason: String?) { latch.countDown() }
+                            override fun onFailure(t: Throwable?, response: io.fabric8.kubernetes.client.dsl.ExecListener.Response?) { latch.countDown() }
+                        })
+                        .exec("cat", "/sshd/ssh_client_key")
+                    latch.await(10, java.util.concurrent.TimeUnit.SECONDS)
+                    val sshKey = output.toString(Charsets.UTF_8)
+                    SshKeyStore.save(initialConfig.id, sshKey)
+                    logger.info("SSH key fetched from container for workspace: $workspaceName")
+                }
             }
         )
     }
@@ -150,6 +195,9 @@ class DevSpacesRemoteEnvironment(
             logger.debug("Error closing client: ${e.message}")
         }
     }
+
+
+
 }
 
 /**

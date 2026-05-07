@@ -23,7 +23,7 @@ kotlin {
 dependencies {
   compileOnly(libs.bundles.toolbox.plugin.api)
   compileOnly(libs.coroutines.core)
-  implementation("io.fabric8:openshift-client:7.2.0") {
+  implementation("io.fabric8:openshift-client:7.6.1") {
     exclude(group = "org.slf4j")
   }
 }

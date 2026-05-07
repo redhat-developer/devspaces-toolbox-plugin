@@ -57,7 +57,7 @@ class DevSpacesRemoteDevExtension : RemoteDevExtension {
         repository.startPolling()
 
         logger.info("DevSpacesRemoteProvider initialized with ${dataSource::class.simpleName}")
-        return DevSpacesRemoteProvider(repository, logger)
+        return DevSpacesRemoteProvider(repository, localizableStringFactory, logger)
     }
 
     private fun createDataSource(logger: Logger, clientFactory: OpenShiftClientFactory): EnvironmentDataSource {

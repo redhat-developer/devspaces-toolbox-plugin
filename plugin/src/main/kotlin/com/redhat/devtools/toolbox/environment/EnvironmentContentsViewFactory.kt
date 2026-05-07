@@ -30,5 +30,9 @@ fun interface EnvironmentContentsViewFactory {
      * @param config The environment's configuration data
      * @return An EnvironmentContentsView implementation
      */
-    suspend fun create(config: EnvironmentConfig, portProvider: () -> Int): EnvironmentContentsView
+    suspend fun create(
+        config: EnvironmentConfig,
+        portProvider: () -> Int,
+        keyProvider: () -> String
+    ): EnvironmentContentsView
 }

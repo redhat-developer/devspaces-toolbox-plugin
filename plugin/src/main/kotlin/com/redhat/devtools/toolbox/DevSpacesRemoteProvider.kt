@@ -12,10 +12,15 @@
 package com.redhat.devtools.toolbox
 
 import com.jetbrains.toolbox.api.core.diagnostics.Logger
-import com.jetbrains.toolbox.api.core.ui.icons.SvgIcon
 import com.jetbrains.toolbox.api.core.util.LoadableState
+import com.jetbrains.toolbox.api.localization.LocalizableString
+import com.jetbrains.toolbox.api.localization.LocalizableStringFactory
 import com.jetbrains.toolbox.api.remoteDev.ProviderVisibilityState
 import com.jetbrains.toolbox.api.remoteDev.RemoteProvider
+import com.jetbrains.toolbox.api.ui.components.UiPage
+import com.jetbrains.toolbox.platform.image.ImageResource
+import com.jetbrains.toolbox.platform.image.image
+import com.jetbrains.toolbox.platform.resource.jvm.jvmResourceReader
 import kotlinx.coroutines.flow.MutableStateFlow
 import com.redhat.devtools.toolbox.environment.DevSpacesRemoteEnvironment
 import com.redhat.devtools.toolbox.environment.EnvironmentConfig
@@ -25,15 +30,13 @@ import java.net.URI
  * [RemoteProvider] implementation that delegates the environment management to [EnvironmentRepository].
  */
 class DevSpacesRemoteProvider(
-    val repository: EnvironmentRepository, val logger: Logger
+    val repository: EnvironmentRepository, val localizableStringFactory: LocalizableStringFactory, val logger: Logger
 ) : RemoteProvider("Dev Spaces") {
 
-    override val svgIcon: SvgIcon = SvgIcon(
-        this::class.java.getResourceAsStream("/icon.svg")?.readAllBytes() ?: byteArrayOf(),
-        type = SvgIcon.IconType.Default
-    )
+    override val iconResource: ImageResource = jvmResourceReader().image("/icon.svg")
 
-    override val noEnvironmentsDescription: String = "Start a workspace from Dev Spaces Dashboard"
+    override val noEnvironmentsDescription: String = "No DevWorkspaces found. Create a new one from the Dev Spaces Dashboard"
+    override val loadingEnvironmentsDescription: LocalizableString = localizableStringFactory.ptrl("Loading DevWorkspaces...")
 
     override val environments: MutableStateFlow<LoadableState<List<DevSpacesRemoteEnvironment>>> =
         repository.environments
@@ -42,6 +45,8 @@ class DevSpacesRemoteProvider(
     override val isSingleEnvironment: Boolean = false
 
     override fun setVisible(visibilityState: ProviderVisibilityState) {}
+
+    override fun getNewEnvironmentUiPage(): UiPage = UiPage(localizableStringFactory.pnotr("Choose a DevWorkspace to connect to"))
 
     /**
      * Handles an external request, typically comes from Che/DevSpaces Dashboard via the link as:

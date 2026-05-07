@@ -23,7 +23,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 class SshEnvironmentContentsViewFactory : EnvironmentContentsViewFactory {
 
-    override suspend fun create(config: EnvironmentConfig, portProvider: () -> Int): EnvironmentContentsView {
+    override suspend fun create(
+        config: EnvironmentConfig,
+        portProvider: () -> Int,
+        keyProvider: () -> String
+    ): EnvironmentContentsView {
         val ides = config.availableIdeProductCodes.map { productCode ->
             SimpleIdeStub(productCode)
         }
@@ -32,7 +36,7 @@ class SshEnvironmentContentsViewFactory : EnvironmentContentsViewFactory {
             CachedProject(path)
         }
 
-        return SimpleEnvironmentContentsView(ides, projects, config.username!!, config.sshKey!!, portProvider)
+        return SimpleEnvironmentContentsView(ides, projects, config.username!!, portProvider, keyProvider)
     }
 }
 
@@ -42,9 +46,9 @@ class SshEnvironmentContentsViewFactory : EnvironmentContentsViewFactory {
 class SimpleEnvironmentContentsView(
     ides: List<CachedIdeStub>,
     projects: List<CachedProject>,
-    val userName: String,
-    val sshKey: String,
-    private val portProvider: () -> Int
+    private val userName: String,
+    private val portProvider: () -> Int,
+    private val keyProvider: () -> String
 ) : ManualEnvironmentContentsView, SshEnvironmentContentsView {
 
     // Expose as immutable flows - data is set once at construction
@@ -54,7 +58,7 @@ class SimpleEnvironmentContentsView(
     override val projectListState: Flow<LoadableState<List<CachedProject>>> =
         MutableStateFlow(LoadableState.Value(projects))
 
-    override suspend fun getConnectionInfo(): SshConnectionInfo = WorkspaceSshConnectionInfo(userName, sshKey, portProvider)
+    override suspend fun getConnectionInfo(): SshConnectionInfo = WorkspaceSshConnectionInfo(userName, portProvider, keyProvider)
 }
 
 data class SimpleIdeStub(
@@ -66,15 +70,12 @@ data class SimpleIdeStub(
 
 private class WorkspaceSshConnectionInfo(
     val uName: String,
-    val sshKey: String,
-    private val portProvider: () -> Int
+    private val portProvider: () -> Int,
+    private val keyProvider: () -> String
 ) : SshConnectionInfo {
 
     override val host: String = "devspaces"
 
-    // TODO: the port value is read on first call only.
-    // But it's not re-read on the subsequent calls.
-    // Need to re-read it on each connection attempts as the port is chosen dynamically.
     override val port: Int get() = portProvider()
 
     override val userName: String = uName
@@ -85,25 +86,19 @@ private class WorkspaceSshConnectionInfo(
             "  StrictHostKeyChecking no"
 
     override val privateKeys: List<ByteArray>
-        get() = listOf(sshKey.toByteArray())
+        get() = listOf(keyProvider().toByteArray())
 
     override val shouldUseSystemConfiguration: Boolean = false
 
     override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as WorkspaceSshConnectionInfo
-
-        if (host != other.host) return false
-        if (port != other.port) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = port
-        result = 31 * result + host.hashCode()
-        return result
+        // Before establishing an SSH connection to a specific environment,
+        // Toolbox stores the `privateKeys` value to ~/Library/Caches/JetBrains/Toolbox/ssh_keys/LS0tLS1CRUdJTiBP
+        // and passes the flie path to `ssh -i` command line.
+        //
+        // With a proper `equals` implementation, Toolbox doesn't refresh an SSH key stored in the temp cache file.
+        //
+        // This is the only way I found so far to make the multiconnection mode work well.
+        // So, it updates an SSH key in the temp file for each new connection.
+        return false
     }
 }

@@ -43,15 +43,14 @@ class DevWorkspacesDataSource(
                     .map { workspace ->
                         // TODO: figure out how to fetch the connection data
                         EnvironmentConfig(
-                            id = workspace.uid,
+                            id = workspace.name,
                             name = MutableStateFlow(workspace.name),
                             description = "[API] DevWorkspace",
                             username = "1001270000",
                             port = 2022,
-                            sshKey = "-----BEGIN OPENSSH PRIVATE KEY-----\n" +
-                                    "-----END OPENSSH PRIVATE KEY-----\n",
                             availableIdeProductCodes = listOf("IU"),
-                            projectPaths = listOf("/projects")
+                            projectPaths = listOf("/projects"),
+                            tags = mapOf("namespace" to workspace.namespace)
                         )
                     }
             }
