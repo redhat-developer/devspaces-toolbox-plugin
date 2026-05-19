@@ -33,6 +33,6 @@ fun interface EnvironmentContentsViewFactory {
     suspend fun create(
         config: EnvironmentConfig,
         portProvider: () -> Int,
-        keyProvider: () -> String
+        credentialsProvider: () -> SshCredentialsStore.Credentials?
     ): EnvironmentContentsView
 }

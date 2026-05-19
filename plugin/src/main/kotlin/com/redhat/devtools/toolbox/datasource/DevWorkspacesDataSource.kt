@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
  * Data source returns the environment configurations from
- * the DevWorkspaces fetched from a Dev Spaces instance.
+ * the DevWorkspaces fetched from the current Dev Spaces instance.
  */
 class DevWorkspacesDataSource(
     private val clientFactory: OpenShiftClientFactory,
@@ -41,14 +41,13 @@ class DevWorkspacesDataSource(
                         DevWorkspaces(client, logger).list(namespace)
                     }
                     .map { workspace ->
-                        // TODO: figure out how to fetch the connection data
                         EnvironmentConfig(
-                            id = workspace.name,
+                            id = workspace.id,
                             name = MutableStateFlow(workspace.name),
-                            description = "[API] DevWorkspace",
-                            username = "1001270000",
-                            port = 2022,
-                            availableIdeProductCodes = listOf("IU"),
+                            description = workspace.phase,
+                            port = 2022, // the port of in-container running sshd
+//                            availableIdeProductCodes = listOf("IU"),
+                            // TODO: implement fetching the PROJECT_SOURCES env. var. value
                             projectPaths = listOf("/projects"),
                             tags = mapOf("namespace" to workspace.namespace)
                         )
@@ -56,21 +55,7 @@ class DevWorkspacesDataSource(
             }
         } catch (e: Exception) {
             logger.error("Failed to fetch environments: ${e.message}")
-            emptyList()
+            throw DataSourceException(e.message.toString(), e)
         }
-    }
-
-    override fun handleExternalRequest(
-        id: String, name: String, userName: String, sshKey: String, projects: List<String>
-    ): EnvironmentConfig {
-        return EnvironmentConfig(
-            id = id,
-            name = MutableStateFlow(name),
-            description = "[External] DevWorkspace",
-            username = userName,
-            sshKey = sshKey,
-            availableIdeProductCodes = listOf("IU"),
-            projectPaths = projects
-        )
     }
 }

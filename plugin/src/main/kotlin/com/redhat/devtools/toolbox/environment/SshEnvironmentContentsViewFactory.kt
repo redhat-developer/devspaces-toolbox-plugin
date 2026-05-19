@@ -26,7 +26,7 @@ class SshEnvironmentContentsViewFactory : EnvironmentContentsViewFactory {
     override suspend fun create(
         config: EnvironmentConfig,
         portProvider: () -> Int,
-        keyProvider: () -> String
+        credentialsProvider: () -> SshCredentialsStore.Credentials?
     ): EnvironmentContentsView {
         val ides = config.availableIdeProductCodes.map { productCode ->
             SimpleIdeStub(productCode)
@@ -36,7 +36,7 @@ class SshEnvironmentContentsViewFactory : EnvironmentContentsViewFactory {
             CachedProject(path)
         }
 
-        return SimpleEnvironmentContentsView(ides, projects, config.username!!, portProvider, keyProvider)
+        return SimpleEnvironmentContentsView(ides, projects, portProvider, credentialsProvider)
     }
 }
 
@@ -46,9 +46,8 @@ class SshEnvironmentContentsViewFactory : EnvironmentContentsViewFactory {
 class SimpleEnvironmentContentsView(
     ides: List<CachedIdeStub>,
     projects: List<CachedProject>,
-    private val userName: String,
     private val portProvider: () -> Int,
-    private val keyProvider: () -> String
+    private val credentialsProvider: () -> SshCredentialsStore.Credentials?
 ) : ManualEnvironmentContentsView, SshEnvironmentContentsView {
 
     // Expose as immutable flows - data is set once at construction
@@ -58,7 +57,7 @@ class SimpleEnvironmentContentsView(
     override val projectListState: Flow<LoadableState<List<CachedProject>>> =
         MutableStateFlow(LoadableState.Value(projects))
 
-    override suspend fun getConnectionInfo(): SshConnectionInfo = WorkspaceSshConnectionInfo(userName, portProvider, keyProvider)
+    override suspend fun getConnectionInfo(): SshConnectionInfo = WorkspaceSshConnectionInfo(portProvider, credentialsProvider)
 }
 
 data class SimpleIdeStub(
@@ -69,16 +68,15 @@ data class SimpleIdeStub(
 }
 
 private class WorkspaceSshConnectionInfo(
-    val uName: String,
     private val portProvider: () -> Int,
-    private val keyProvider: () -> String
+    private val credentialsProvider: () -> SshCredentialsStore.Credentials?
 ) : SshConnectionInfo {
 
     override val host: String = "devspaces"
 
     override val port: Int get() = portProvider()
 
-    override val userName: String = uName
+    override val userName: String get() = credentialsProvider()?.username ?: ""
 
     override val sshConfig: String = "Host $host\n" +
             "  HostName 127.0.0.1\n" +
@@ -86,7 +84,7 @@ private class WorkspaceSshConnectionInfo(
             "  StrictHostKeyChecking no"
 
     override val privateKeys: List<ByteArray>
-        get() = listOf(keyProvider().toByteArray())
+        get() = listOf((credentialsProvider()?.privateKey ?: "").toByteArray())
 
     override val shouldUseSystemConfiguration: Boolean = false
 

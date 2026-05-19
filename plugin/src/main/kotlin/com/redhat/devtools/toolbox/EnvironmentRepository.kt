@@ -70,15 +70,12 @@ class EnvironmentRepository(
 
     /**
      * Triggers updating the environments list.
-     *
-     * @param externalEnvironment - optional, may be provided in case of an external request.
-     * Typically, it comes from the Dashboard.
      */
-    suspend fun refreshEnvironments(externalEnvironment: EnvironmentConfig? = null) {
+    suspend fun refreshEnvironments() {
         logger.debug("Refreshing environments from ${dataSource::class.simpleName}")
 
         try {
-            val configs = dataSource.fetchEnvironments() + listOfNotNull(externalEnvironment)
+            val configs = dataSource.fetchEnvironments()
 
             val environments = configs.map { config ->
                 getOrCreateEnvironment(config)
