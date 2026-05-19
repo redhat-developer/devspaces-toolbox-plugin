@@ -147,6 +147,8 @@ class DevWorkspaces(private val client: KubernetesClient, private val logger: Lo
             while (true) {
                 val workspace = try {
                     get(namespace, name)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.debug("Error fetching workspace status: ${e.message}")
                     delay(500.milliseconds)
