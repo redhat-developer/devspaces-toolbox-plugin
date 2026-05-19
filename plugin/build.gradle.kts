@@ -12,6 +12,8 @@ plugins {
 group = "com.redhat.devtools.toolbox"
 version = "0.0.2"
 
+extra["vendor"] = "Red-Hat"
+
 configurations.named("runtimeClasspath") {
   exclude(group = "org.jetbrains.kotlin")
   exclude(group = "org.jetbrains.kotlinx")
