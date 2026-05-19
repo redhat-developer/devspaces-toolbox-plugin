@@ -68,6 +68,11 @@ class DevSpacesRemoteProvider(
 
         val dwID: String = queryParams["dwID"] ?: ""
 
+        if (dwID.isBlank()) {
+            logger.warn("Received URI without valid dwID parameter: $uri")
+            return
+        }
+
         // Schedule establishing the connection to the environment.
         repository.updateConnectionRequest(dwID, true)
     }
