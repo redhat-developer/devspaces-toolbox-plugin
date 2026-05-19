@@ -3,6 +3,7 @@ plugins {
 //  `kotlin-dsl`
   id("com.redhat.devtools.toolbox.packaging")
   id("com.redhat.devtools.toolbox.install")
+  id("com.redhat.devtools.toolbox.publish")
   `java-library`
 }
 
