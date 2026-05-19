@@ -31,12 +31,6 @@ interface EnvironmentDataSource {
      * @throws DataSourceException on failure
      */
     suspend fun fetchEnvironments(): List<EnvironmentConfig>
-
-    /**
-     * Returns an additional environment configuration
-     * came from external request.
-     */
-    fun handleExternalRequest(id: String, name: String, userName: String, sshKey: String, projects: List<String>): EnvironmentConfig
 }
 
 /**

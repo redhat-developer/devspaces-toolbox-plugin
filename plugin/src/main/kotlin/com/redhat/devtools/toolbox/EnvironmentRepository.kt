@@ -18,11 +18,13 @@ import com.jetbrains.toolbox.api.remoteDev.states.RemoteEnvironmentState
 import com.redhat.devtools.toolbox.datasource.DataSourceException
 import com.redhat.devtools.toolbox.datasource.EnvironmentDataSource
 import com.redhat.devtools.toolbox.environment.*
+import com.redhat.devtools.toolbox.openshift.OpenShiftClientFactory
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Repository managing the lifecycle of remote environments.
@@ -38,8 +40,9 @@ class EnvironmentRepository(
     private val logger: Logger,
     private val coroutineScope: CoroutineScope,
     private val contentsViewFactory: EnvironmentContentsViewFactory = SshEnvironmentContentsViewFactory(),
-    private val refreshInterval: Duration = 10.minutes,
-    private val localizableStringFactory: LocalizableStringFactory
+    private val refreshInterval: Duration = 10.seconds,
+    private val localizableStringFactory: LocalizableStringFactory,
+    private val clientFactory: OpenShiftClientFactory
 ) {
     // Internal mutable state
     private val _environments = MutableStateFlow<LoadableState<List<DevSpacesRemoteEnvironment>>>(
@@ -57,27 +60,22 @@ class EnvironmentRepository(
             // Initial fetch
             refreshEnvironments()
 
-            // Periodic refresh
-            // TODO: enable it once fetching all workspaces implemented in DataSource
-            // Disabled to prevent loosing an environment came externally, through URL.
-//            while (isActive) {
-//                delay(refreshInterval)
-//                refreshEnvironments()
-//            }
+            // periodically sync the workspaces list with the remote
+            while (isActive) {
+                delay(refreshInterval)
+                refreshEnvironments()
+            }
         }
     }
 
     /**
      * Triggers updating the environments list.
-     *
-     * @param externalEnvironment - optional, may be provided in case of an external request.
-     * Typically, it comes from the Dashboard.
      */
-    suspend fun refreshEnvironments(externalEnvironment: EnvironmentConfig? = null) {
+    suspend fun refreshEnvironments() {
         logger.debug("Refreshing environments from ${dataSource::class.simpleName}")
 
         try {
-            val configs = dataSource.fetchEnvironments() + listOfNotNull(externalEnvironment)
+            val configs = dataSource.fetchEnvironments()
 
             val environments = configs.map { config ->
                 getOrCreateEnvironment(config)
@@ -106,7 +104,7 @@ class EnvironmentRepository(
     private fun getOrCreateEnvironment(config: EnvironmentConfig): DevSpacesRemoteEnvironment {
         return environmentCache.getOrPut(config.id) {
             logger.debug("Creating new environment: ${config.id}")
-            config.toRemoteEnvironment(contentsViewFactory, localizableStringFactory, logger)
+            config.toRemoteEnvironment(contentsViewFactory, localizableStringFactory, logger, clientFactory)
         }.also { existingEnv ->
             // Update config if it is changed
             if (existingEnv.getConfig() != config) {

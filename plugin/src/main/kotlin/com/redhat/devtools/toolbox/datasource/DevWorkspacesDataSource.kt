@@ -12,36 +12,50 @@
 package com.redhat.devtools.toolbox.datasource
 
 import com.jetbrains.toolbox.api.core.diagnostics.Logger
-import kotlinx.coroutines.flow.MutableStateFlow
 import com.redhat.devtools.toolbox.environment.EnvironmentConfig
+import com.redhat.devtools.toolbox.openshift.OpenShiftClientFactory
+import com.redhat.devtools.toolbox.openshift.DevWorkspaces
+import com.redhat.devtools.toolbox.openshift.Projects
+import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
  * Data source returns the environment configurations from
- * the DevWorkspaces fetched from a Dev Spaces instance.
+ * the DevWorkspaces fetched from the current Dev Spaces instance.
  */
 class DevWorkspacesDataSource(
-    logger: Logger
+    private val clientFactory: OpenShiftClientFactory,
+    private val logger: Logger
 ) : EnvironmentDataSource {
 
     /**
      * Fetches the CDEs from the currently logged-in Dev Spaces instance.
      */
     override suspend fun fetchEnvironments(): List<EnvironmentConfig> {
-//        TODO("Not yet implemented")
-        return emptyList()
-    }
+        return try {
+            clientFactory.create().use { client ->
+                val projects = Projects(client).list()
 
-    override fun handleExternalRequest(
-        id: String, name: String, userName: String, sshKey: String, projects: List<String>
-    ): EnvironmentConfig {
-        return EnvironmentConfig(
-            id = id,
-            name = MutableStateFlow(name),
-            description = "[External] DevWorkspace",
-            username = userName,
-            sshKey = sshKey,
-            availableIdeProductCodes = listOf("IU"),
-            projectPaths = projects
-        )
+                projects
+                    .mapNotNull { it.metadata?.name }
+                    .flatMap { namespace ->
+                        DevWorkspaces(client, logger).list(namespace)
+                    }
+                    .map { workspace ->
+                        EnvironmentConfig(
+                            id = workspace.id,
+                            name = MutableStateFlow(workspace.name),
+                            description = workspace.phase,
+                            port = 2022, // the port of in-container running sshd
+//                            availableIdeProductCodes = listOf("IU"),
+                            // TODO: implement fetching the PROJECT_SOURCES env. var. value
+                            projectPaths = listOf("/projects"),
+                            tags = mapOf("namespace" to workspace.namespace)
+                        )
+                    }
+            }
+        } catch (e: Exception) {
+            logger.error("Failed to fetch environments: ${e.message}")
+            throw DataSourceException(e.message.toString(), e)
+        }
     }
 }

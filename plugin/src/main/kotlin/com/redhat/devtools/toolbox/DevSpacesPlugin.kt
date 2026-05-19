@@ -19,6 +19,7 @@ import com.jetbrains.toolbox.api.remoteDev.RemoteProvider
 import kotlinx.coroutines.CoroutineScope
 import com.redhat.devtools.toolbox.datasource.EnvironmentDataSource
 import com.redhat.devtools.toolbox.datasource.DevWorkspacesDataSource
+import com.redhat.devtools.toolbox.openshift.OpenShiftClientFactory
 
 /**
  * Extends Toolbox remote development subsystem with
@@ -38,26 +39,28 @@ class DevSpacesRemoteDevExtension : RemoteDevExtension {
         val coroutineScope = serviceLocator.getService(CoroutineScope::class.java)
         val localizableStringFactory = serviceLocator.getService(LocalizableStringFactory::class.java)
 
+        val clientFactory = OpenShiftClientFactory(logger)
+
         // Single data source, swap implementation as needed
-        val dataSource = createDataSource(logger)
+        val dataSource = createDataSource(logger, clientFactory)
 
         // Initialized and manages the remote environments
         val repository = EnvironmentRepository(
             dataSource = dataSource,
             coroutineScope = coroutineScope,
             logger = logger,
-            localizableStringFactory = localizableStringFactory
+            localizableStringFactory = localizableStringFactory,
+            clientFactory  = clientFactory
         )
 
         // Periodically refresh environments from the data source
         repository.startPolling()
 
         logger.info("DevSpacesRemoteProvider initialized with ${dataSource::class.simpleName}")
-        return DevSpacesRemoteProvider(repository, logger)
+        return DevSpacesRemoteProvider(repository, localizableStringFactory, logger)
     }
 
-    private fun createDataSource(logger: Logger): EnvironmentDataSource {
-        // data source creation logic
-        return DevWorkspacesDataSource(logger = logger)
+    private fun createDataSource(logger: Logger, clientFactory: OpenShiftClientFactory): EnvironmentDataSource {
+        return DevWorkspacesDataSource(clientFactory, logger)
     }
 }
