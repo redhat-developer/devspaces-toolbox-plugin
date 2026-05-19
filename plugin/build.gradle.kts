@@ -10,7 +10,7 @@ plugins {
 // Note, the `group` value is used as a provider ID
 // when handling the URLs like `jetbrains://gateway/provider.ID`
 group = "com.redhat.devtools.toolbox"
-version = "0.0.1"
+version = "0.0.2"
 
 configurations.named("runtimeClasspath") {
   exclude(group = "org.jetbrains.kotlin")
