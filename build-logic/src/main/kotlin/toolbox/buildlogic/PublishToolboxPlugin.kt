@@ -37,6 +37,7 @@ class PublishToolboxPlugin : Plugin<Project> {
       from(target.file("src/main/resources")) {
         include("dependencies.json")
         include("icon.svg")
+        include("pluginIcon.svg")
         into("${target.group}")
       }
       from(target.tasks.named("jar")) {
