@@ -77,6 +77,7 @@ class InstallToolboxPlugin : Plugin<Project> {
         from("src/main/resources") {
           include("dependencies.json")
           include("icon.svg")
+          include("pluginIcon.svg")
         }
         into(targetDir)
       }
