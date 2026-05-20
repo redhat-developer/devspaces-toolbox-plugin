@@ -10,7 +10,7 @@ plugins {
 // Note, the `group` value is used as a provider ID
 // when handling the URLs like `jetbrains://gateway/provider.ID`
 group = "com.redhat.devtools.toolbox"
-version = "0.0.3"
+version = "0.0.4"
 
 extra["vendor"] = "Red-Hat"
 
