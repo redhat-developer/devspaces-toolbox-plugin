@@ -1,6 +1,8 @@
 # OpenShift Dev Spaces (Eclipse Che) plugin for JetBrains Toolbox
 Plugin for JetBrains Toolbox enables local desktop development experience with the IntelliJ IDEs connected to Red Hat OpenShift Dev Spaces.
 
+<img width="486" height="746" alt="image" src="https://github.com/user-attachments/assets/84e1983c-2508-4318-a7a6-dc0d4e11d787" />
+
 ## How to use
 
 ### 1. Install Toolbox
