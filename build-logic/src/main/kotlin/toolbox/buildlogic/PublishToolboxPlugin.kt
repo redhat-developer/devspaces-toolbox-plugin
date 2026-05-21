@@ -38,11 +38,10 @@ class PublishToolboxPlugin : Plugin<Project> {
         include("dependencies.json")
         include("icon.svg")
         include("pluginIcon.svg")
-        into("${target.group}")
       }
-      from(target.tasks.named("jar")) {
-        into("${target.group}/lib")
-      }
+      from(target.tasks.named("jar"))
+      // Include runtime dependencies
+      from(target.configurations.named("runtimeClasspath"))
     }
 
     target.tasks.register("publishPlugin", PublishTask::class.java) {
