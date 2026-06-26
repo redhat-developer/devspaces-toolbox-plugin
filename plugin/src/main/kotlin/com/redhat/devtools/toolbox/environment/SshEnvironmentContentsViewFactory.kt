@@ -81,6 +81,7 @@ private class WorkspaceSshConnectionInfo(
     override val sshConfig: String = "Host $host\n" +
             "  HostName 127.0.0.1\n" +
             "  UserKnownHostsFile /dev/null\n" +
+            "  IdentitiesOnly yes\n" +
             "  StrictHostKeyChecking no"
 
     override val privateKeys: List<ByteArray>
