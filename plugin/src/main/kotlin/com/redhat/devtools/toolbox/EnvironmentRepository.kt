@@ -19,11 +19,16 @@ import com.redhat.devtools.toolbox.datasource.DataSourceException
 import com.redhat.devtools.toolbox.datasource.EnvironmentDataSource
 import com.redhat.devtools.toolbox.environment.*
 import com.redhat.devtools.toolbox.openshift.OpenShiftClientFactory
+import io.fabric8.openshift.client.OpenShiftClient
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -44,16 +49,31 @@ class EnvironmentRepository(
     private val localizableStringFactory: LocalizableStringFactory,
     private val clientFactory: OpenShiftClientFactory
 ) {
-    // Internal mutable state
-    private val _environments = MutableStateFlow<LoadableState<List<DevSpacesRemoteEnvironment>>>(
+    // Internal mutable state - holds the full unfiltered list
+    private val _allEnvironments = MutableStateFlow<LoadableState<List<DevSpacesRemoteEnvironment>>>(
         LoadableState.Loading
     )
 
     // Cache of created environments by ID - allows updating existing instances
-    private val environmentCache = mutableMapOf<String, DevSpacesRemoteEnvironment>()
+    private val environmentCache = ConcurrentHashMap<String, DevSpacesRemoteEnvironment>()
 
-    // Observable environment list for the provider
-    val environments: MutableStateFlow<LoadableState<List<DevSpacesRemoteEnvironment>>> = _environments
+    // Username of the currently logged-in OpenShift user (resolved on first fetch)
+    private var currentUsername: String? = null
+
+    // When true, the environments list is filtered to show only the current user's workspaces
+    val currentUserOnly = MutableStateFlow(true)
+
+    // Filtered view exposed to the provider — reacts to both list updates and toggle changes
+    val environments: StateFlow<LoadableState<List<DevSpacesRemoteEnvironment>>> =
+        combine(_allEnvironments, currentUserOnly) { allEnvs, onlyMine ->
+            if (!onlyMine || currentUsername == null) {
+                allEnvs
+            } else {
+                allEnvs.map { list ->
+                    list.filter { it.getConfig().tags["owner"] == currentUsername }
+                }
+            }
+        }.stateIn(coroutineScope, SharingStarted.Eagerly, LoadableState.Loading)
 
     fun startPolling() {
         coroutineScope.launch(CoroutineName("EnvironmentRepository-Polling")) {
@@ -75,17 +95,21 @@ class EnvironmentRepository(
         logger.debug("Refreshing environments from ${dataSource::class.simpleName}")
 
         try {
+            if (currentUsername == null) {
+                currentUsername = resolveCurrentUsername()
+            }
+
             val configs = dataSource.fetchEnvironments()
 
-            val environments = configs.map { config ->
-                getOrCreateEnvironment(config)
-            }
+            val environments = configs
+                .sortedWith(compareBy(nullsLast()) { it.tags["owner"] })
+                .map { config -> getOrCreateEnvironment(config) }
 
             // Remove environments that no longer exist
             val currentIds = configs.map { it.id }.toSet()
             environmentCache.keys.removeAll { it !in currentIds }
 
-            _environments.value = LoadableState.Value(environments)
+            _allEnvironments.value = LoadableState.Value(environments)
             logger.info("PLUGIN: Setting environments to ${environments.size} items: ${environments.map { it.id }}")
 
         } catch (e: CancellationException) {
@@ -139,4 +163,15 @@ class EnvironmentRepository(
      * Get a specific environment by ID.
      */
     fun getEnvironment(id: String): DevSpacesRemoteEnvironment? = environmentCache[id]
+
+    private fun resolveCurrentUsername(): String? {
+        return try {
+            clientFactory.create().use { client ->
+                (client as? OpenShiftClient)?.currentUser()?.metadata?.name
+            }
+        } catch (e: Exception) {
+            logger.warn("Could not resolve current username: ${e.message}")
+            null
+        }
+    }
 }

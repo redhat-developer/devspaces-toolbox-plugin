@@ -17,11 +17,17 @@ import com.jetbrains.toolbox.api.localization.LocalizableString
 import com.jetbrains.toolbox.api.localization.LocalizableStringFactory
 import com.jetbrains.toolbox.api.remoteDev.ProviderVisibilityState
 import com.jetbrains.toolbox.api.remoteDev.RemoteProvider
+import com.jetbrains.toolbox.api.ui.actions.ActionDescription
+import com.jetbrains.toolbox.api.ui.actions.RunnableActionDescription
 import com.jetbrains.toolbox.api.ui.components.UiPage
 import com.jetbrains.toolbox.platform.image.ImageResource
 import com.jetbrains.toolbox.platform.image.image
 import com.jetbrains.toolbox.platform.resource.jvm.jvmResourceReader
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import com.redhat.devtools.toolbox.environment.DevSpacesRemoteEnvironment
 import java.net.URI
 
@@ -31,7 +37,8 @@ import java.net.URI
 class DevSpacesRemoteProvider(
     val repository: EnvironmentRepository,
     val localizableStringFactory: LocalizableStringFactory,
-    val logger: Logger
+    val logger: Logger,
+    val coroutineScope: CoroutineScope
 ) : RemoteProvider("Dev Spaces") {
 
     override val iconResource: ImageResource = jvmResourceReader().image("/icon.svg")
@@ -42,8 +49,20 @@ class DevSpacesRemoteProvider(
             "make sure you are logged in to the correct cluster\r\n" +
             "by running the 'oc login ...' command in the terminal.")
 
-    override val environments: MutableStateFlow<LoadableState<List<DevSpacesRemoteEnvironment>>> =
+    override val environments: StateFlow<LoadableState<List<DevSpacesRemoteEnvironment>>> =
         repository.environments
+
+    override val additionalPluginActions: StateFlow<List<ActionDescription>> =
+        repository.currentUserOnly.map { onlyMine ->
+            listOf(object : RunnableActionDescription {
+                override val label = localizableStringFactory.pnotr(
+                    if (onlyMine) "Show all workspaces" else "Show only my workspaces"
+                )
+                override fun run() {
+                    repository.currentUserOnly.value = !repository.currentUserOnly.value
+                }
+            })
+        }.stateIn(coroutineScope, SharingStarted.Eagerly, emptyList())
 
     override val canCreateNewEnvironments: Boolean = false
     override val isSingleEnvironment: Boolean = false

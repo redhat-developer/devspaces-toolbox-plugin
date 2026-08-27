@@ -57,6 +57,8 @@ class DevSpacesRemoteEnvironment(
     private var activePortForward: LocalPortForward? = null
 
     //  Public reactive properties (observed by Toolbox UI)
+    override val secondaryInformation: String? = initialConfig.tags["owner"]
+
     override var nameFlow: MutableStateFlow<String> = _currentConfig.name
 
     override val state: MutableStateFlow<RemoteEnvironmentState> = _state
@@ -103,9 +105,7 @@ class DevSpacesRemoteEnvironment(
         require(newConfig.id == initialConfig.id) { logger.info("Cannot change environment ID for ${initialConfig.id}") }
         _currentConfig = newConfig
         _description.update {
-            EnvironmentDescription.General(newConfig.description?.let { text ->
-                localizableStringFactory.ptrl(text)
-            })
+            EnvironmentDescription.General(newConfig.description?.let { localizableStringFactory.ptrl(it) })
         }
     }
 
