@@ -22,13 +22,13 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
-import java.nio.file.Path
-import java.util.*
 import kotlin.io.path.div
 
 class InstallToolboxPlugin : Plugin<Project> {
   override fun apply(target: Project) {
     val installTask = target.tasks.register("installPlugin", InstallTask::class.java) {
+      group = "toolbox"
+      description = "Builds and installs the plugin into the local JetBrains Toolbox plugins directory"
       extensionId.set(target.group.toString())
       extensionJsonFile.set(target.layout.buildDirectory.file("generated/extension.json"))
       pluginRuntimeDependencies.from(target.configurations.named("runtimeClasspath"))
@@ -51,22 +51,7 @@ class InstallToolboxPlugin : Plugin<Project> {
     fun install() {
       println("Installing Toolbox plugin...")
       project.sync {
-        val userHome = System.getProperty("user.home").let { Path.of(it) }
-        val os = System.getProperty("os.name").lowercase(Locale.getDefault())
-        val toolboxCachesDir = when {
-          os.contains("win") -> System.getenv("LOCALAPPDATA")?.let { Path.of(it) } ?: (userHome / "AppData" / "Local")
-          os.contains("linux") -> System.getenv("XDG_CACHE_HOME")?.let { Path.of(it) } ?: (userHome / ".cache")
-          os.contains("mac") -> userHome / "Library" / "Caches"
-          else -> error("Unknown os: $os")
-        } / "JetBrains" / "Toolbox"
-
-        val pluginsDir = when {
-          os.contains("win") -> toolboxCachesDir / "cache"
-          os.contains("linux") || os.contains("mac") -> toolboxCachesDir
-          else -> error("Unknown os: $os")
-        } / "plugins"
-
-        val targetDir = pluginsDir / extensionId.get()
+        val targetDir = ToolboxApp.pluginsDir() / extensionId.get()
 
         // Copy jar task output and the generated JSON
         from(project.tasks.getByName("jar"))
