@@ -11,6 +11,9 @@ Edit-run loop:
 1. Run `./gradlew installPlugin` to build the plugin and install it directly to Toolbox.
 2. Restart the Toolbox to apply the installed plugin.
 
+Alternatively, run `./gradlew :plugin:devReload` to build, install, and restart the Toolbox in a single step.
+Add `-PskipToolboxRestart=true` to skip the restart, or `-PtoolboxExecutable=/path/to/jetbrains-toolbox` to point at a custom Toolbox executable.
+
 To check the logs:
 1. Go to the `About` page.
 2. Click `Show log files`.

@@ -33,6 +33,12 @@ gradlePlugin {
       displayName = "Install Toolbox Plugin"
       description = "Installs the plugin into the local Toolbox directory"
     }
+    create("toolboxDev") {
+      id = "com.redhat.devtools.toolbox.dev"
+      implementationClass = "com.redhat.devtools.toolbox.buildlogic.DevToolboxPlugin"
+      displayName = "Dev Reload for Toolbox Plugin"
+      description = "Registers quit, launch, and dev-reload tasks to restart the local JetBrains Toolbox"
+    }
     create("toolboxPublish") {
       id = "com.redhat.devtools.toolbox.publish"
       implementationClass = "com.redhat.devtools.toolbox.buildlogic.PublishToolboxPlugin"
