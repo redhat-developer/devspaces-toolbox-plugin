@@ -26,10 +26,10 @@ import com.redhat.devtools.toolbox.openshift.OpenShiftClientFactory
 import io.fabric8.kubernetes.client.LocalPortForward
 import io.fabric8.openshift.client.OpenShiftClient
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.runBlocking
 
 /**
  * Reactive wrapper around [EnvironmentConfig] that satisfies the Toolbox API.
@@ -182,12 +182,10 @@ class DevSpacesRemoteEnvironment(
             val sshKey = fetchSshKeyFromContainer(client, namespace, pod.metadata.name)
             val username = readFileInContainer(client, namespace, pod.metadata.name, "/sshd/username").trim()
 
-            if (sshKey.isNotBlank() && username.isNotBlank()) {
-                SshCredentialsStore.save(initialConfig.id, SshCredentialsStore.Credentials(sshKey, username))
-                logger.info("SSH credentials fetched from container for workspace: $workspaceName")
-            } else {
-                logger.error("Failed to fetch SSH credentials from container for workspace: $workspaceName")
-            }
+            if (username.isBlank())
+                throw IllegalStateException("Failed to fetch SSH user name from container for workspace: $workspaceName")
+
+            SshCredentialsStore.save(initialConfig.id, SshCredentialsStore.Credentials(sshKey, username))
         }
     }
 
