@@ -14,6 +14,7 @@ package com.redhat.devtools.toolbox.datasource
 import com.jetbrains.toolbox.api.core.diagnostics.Logger
 import com.redhat.devtools.toolbox.environment.EnvironmentConfig
 import com.redhat.devtools.toolbox.openshift.OpenShiftClientFactory
+import com.redhat.devtools.toolbox.openshift.DevWorkspace
 import com.redhat.devtools.toolbox.openshift.DevWorkspaces
 import com.redhat.devtools.toolbox.openshift.Projects
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,8 +48,12 @@ class DevWorkspacesDataSource(
                             description = workspace.phase,
                             port = 2022, // the port of in-container running sshd
 //                            availableIdeProductCodes = listOf("IU"),
-                            // TODO: implement fetching the PROJECT_SOURCES env. var. value
-                            projectPaths = listOf("/projects"),
+                            // Expose every project the workspace clones so the user can open
+                            // any of them directly from Toolbox. Fall back to the projects
+                            // root for workspaces that declare no projects.
+                            projectPaths = workspace.projectPaths.ifEmpty {
+                                listOf(DevWorkspace.PROJECTS_ROOT)
+                            },
                             tags = mapOf("namespace" to workspace.namespace)
                         )
                     }
